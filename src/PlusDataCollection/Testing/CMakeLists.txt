@@ -535,6 +535,12 @@ IF(PLUS_USE_FLIRSPINNAKER_CAM AND PLUS_RENDERING_ENABLED)
   TARGET_LINK_LIBRARIES(vtkFLIRSpinnakerCamTest vtkPlusDataCollection vtkPlusCommon ${PLUSLIB_VTK_PREFIX}InteractionImage)
  ENDIF()
 
+#*********************** SpecimCameraDeviceTest *****************************
+IF(PLUS_USE_SPECIM_CAM AND PLUS_RENDERING_ENABLED)
+  ADD_EXECUTABLE(vtkSpecimCamTest vtkSpecimCamTest.cxx)
+  SET_TARGET_PROPERTIES(vtkSpecimCamTest PROPERTIES FOLDER Tests)
+  TARGET_LINK_LIBRARIES(vtkSpecimCamTest vtkPlusDataCollection vtkPlusCommon ${PLUSLIB_VTK_PREFIX}InteractionImage)
+ ENDIF()
 
 #*************************** vtkOvrvisionProVideoSourceTest ***************************
 IF(PLUS_USE_OvrvisionPro AND PLUS_TEST_OvrvisionPro)

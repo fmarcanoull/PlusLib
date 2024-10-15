@@ -236,6 +236,10 @@ See License.txt for details.
 #include "vtkPlusFLIRSpinnakerCam.h"
 #endif
 
+#ifdef PLUS_USE_SPECIM_CAM
+#include "vtkPlusSpecimCam.h"
+#endif
+
 #ifdef PLUS_USE_GENERIC_SENSOR_TRACKER
 #if WIN32
 #include "vtkPlusGenericSensorTracker.h"
@@ -455,6 +459,10 @@ vtkPlusDeviceFactory::vtkPlusDeviceFactory()
 
 #ifdef PLUS_USE_FLIRSPINNAKER_CAM
     RegisterDevice("FLIRSpinnakerCam", "vtkPlusFLIRSpinnakerCam", (PointerToDevice)&vtkPlusFLIRSpinnakerCam::New);
+#endif
+
+#ifdef PLUS_USE_SPECIM_CAM
+    RegisterDevice("SpecimCam", "vtkPlusSpecimCam", (PointerToDevice)&vtkPlusSpecimCam::New);
 #endif
 
 #ifdef PLUS_USE_CLARIUS

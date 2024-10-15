@@ -1,0 +1,26 @@
+/*!
+\page DeviceSpecimCam FX17e camera
+
+\section DeviceSpecimCamera 
+This device allow you to use a FX17e Camera to capture and send hyperspectral infrared images.
+
+This device only works in Windows. 
+
+\section SpecimCamConfigInstallation
+
+You can found the license in:
+ "PlusLib/src/Utilities/SpecimCamera/README.md"
+
+\section SpecimCamConfigSettings Device configuration settings
+
+- \xmlAtt \ref DeviceType "Type" = \c "SpecimCam" \RequiredAtt
+
+- \xmlElem \ref DataSources Exactly one \c DataSource child element is required. \RequiredAtt
+   - \xmlElem \ref DataSource \RequiredAtt
+    - \xmlAtt \ref PortUsImageOrientation \RequiredAtt
+
+\section SpecimCamExampleConfigFile Example configuration file PlusDeviceSet_Server_SpecimCamera.xml
+
+\include "ConfigFiles/PlusDeviceSet_Server_SpecimCamera.xml"
+
+*/

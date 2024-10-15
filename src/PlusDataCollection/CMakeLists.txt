@@ -61,6 +61,7 @@ OPTION(PLUS_USE_ULTRAVIOLET_PCOUV_CAM "Provide support for capturing an PCO Ultr
 OPTION(PLUS_USE_DAQVIDEOSOURCE "Provide support for capturing an CameraLink Camera using DAQ System USB3-FRM13-B Grabber"  OFF)
 OPTION(PLUS_USE_DAQMMFCOMBINED_VIDEO "Provide support for capturing an CameraLink Camera using DAQ System USB3-FRM13-B Grabber and MMF Video"  OFF)
 OPTION(PLUS_USE_FLIRSPINNAKER_CAM "Provide support for capturing an FLIR Spinnaker Camera capture stream" OFF)
+OPTION(PLUS_USE_SPECIM_CAM "Provide support for capturing an Specim Fx17e Camera capture stream" OFF)
 OPTION(PLUS_USE_WITMOTIONTRACKER "Provide support for the WitMotion class of inertial measurement units" OFF)
 
 OPTION(PLUS_USE_LEAPMOTION "Provide support for the LeapMotion hand tracker" OFF)
@@ -2519,7 +2520,41 @@ IF(PLUS_USE_FLIRSPINNAKER_CAM)
 
 ENDIF()
 
+IF(PLUS_USE_SPECIM_CAM)
+  FIND_PACKAGE(SPECIM_SDK REQUIRED)
 
+  # Compile
+  SET(SPECIM_SRCS
+    SpecimCam/vtkPlusSpecimCam.cxx
+    )
+  SET(SPECIM_HDRS
+      SpecimCam/vtkPlusSpecimCam.h
+  )
+
+  LIST(APPEND ${PROJECT_NAME}_HDRS
+    ${SPECIM_HDRS}
+  )
+
+  LIST(APPEND ${PROJECT_NAME}_SRCS
+    ${SPECIM_SRCS}
+  )
+
+  LIST(APPEND ${PROJECT_NAME}_INCLUDE_DIRS
+    ${CMAKE_CURRENT_SOURCE_DIR}/SpecimCam
+    ${SPECIM_LIBRARY}
+    ${SPECIM_SDK_INCLUDE_DIR}
+  )
+
+  LIST(APPEND ${PROJECT_NAME}_LIBS
+    ${SPECIM_SDK_LIBRARY}
+  )
+  LIST(APPEND External_Libraries_Install
+    ${SPECIM_SDK_BINARY}/${SDK_FILENAME}
+  )
+  LIST(APPEND External_Libraries_Debug
+    ${SPECIM_SDK_BINARY}/${SDK_FILENAME}
+  )
+ENDIF()
 
 
 
