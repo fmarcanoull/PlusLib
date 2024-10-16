@@ -290,12 +290,41 @@ int PrintDeviceInfo(INodeMap& nodeMap)
 ***/
 
 //-----------------------------------------------------------------------------
+PlusStatus featureCallback(SI_H hndl, SI_WC* feature, void* context)
+{
+  return PLUS_SUCCESS;
+}
 PlusStatus vtkPlusSpecimCam::ReadConfiguration(vtkXMLDataElement* rootConfigElement)
 {
   XML_FIND_DEVICE_ELEMENT_REQUIRED_FOR_READING(deviceConfig, rootConfigElement);
- /***
+  int numAttributes = deviceConfig->GetNumberOfAttributes();
+  std::string Model = deviceConfig->GetAttribute("Model");
+  LOG_DEBUG("Reading configuration of Specim Camera " << Model << ".");
 
-  LOG_DEBUG("Configure FLIR Systems Spinnaker");
+  for (int ix = 0; ix < numAttributes; ++ix) {
+    const char* attributeName = deviceConfig->GetAttributeName(ix);
+    const char* attributeValue = deviceConfig->GetAttribute(attributeName);
+    std::string attNameStr(attributeName);
+    std::string attValStr(attributeValue);
+    if (attNameStr.find('.') != std::string::npos) { // is camera attribute
+      size_t commaPos = attValStr.find(',');
+      if (commaPos != std::string::npos){
+        std::string val1 = attValStr.substr(0, commaPos);
+        std::string val2 = attValStr.substr(commaPos + 1);
+        if (val1.find("None") != std::string::npos) {
+          val1 = "";
+        }
+        LOG_DEBUG(attNameStr << ": " << val1 << " , Stopacquisition = " << val2);
+      }
+      else {
+        LOG_DEBUG(attNameStr << ": " << attValStr);
+      }
+    }
+  }
+
+/***
+
+  
   const char* ExposureTimeString = deviceConfig->GetAttribute("ExposureTime");
   std::string VideoFormatString = deviceConfig->GetAttribute("VideoFormat");
   if (ExposureTimeString)
