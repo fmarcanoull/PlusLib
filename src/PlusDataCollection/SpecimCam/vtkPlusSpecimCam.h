@@ -65,14 +65,11 @@ protected:
     Mono8 = 0,
     Mono16 = 1
   };
-
+ CameraList camList;
   DWORD dwExposure;
   int iVideoFormat;
+**/  
   double m_currentTime = UNDEFINED_TIMESTAMP;
-
-  CameraList camList;
-**/
-
 };
 
 #endif // __vtkPlusSpecimCam_h

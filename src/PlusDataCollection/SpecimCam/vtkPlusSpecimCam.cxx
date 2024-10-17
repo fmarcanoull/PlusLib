@@ -21,11 +21,12 @@ Developed by ULL & IACTEC-IAC group
 #include <vtkImageData.h>
 #include <vtkObjectFactory.h>
 
-/***
-SystemPtr psystem;
-CameraPtr pCam;
-ImageProcessor processor;
-***/
+SI_H g_hDevice = 0;
+SI_U8 *S_BufferAddress = nullptr;
+SI_64 S_FrameSize;
+SI_64 S_FrameNumber;
+
+std::string cameraModel;
 
 //----------------------------------------------------------------------------
 
@@ -41,6 +42,47 @@ vtkPlusSpecimCam::vtkPlusSpecimCam()
 //----------------------------------------------------------------------------
 vtkPlusSpecimCam::~vtkPlusSpecimCam()
 {
+ // Due to freeze connects & disconnects, Load should be in ReadConfiguration 
+ // after the reading of ProfilesDirectory,  and Unload should be here 
+ // in the last executed function (this one).
+  SI_Unload();
+}
+
+
+PlusStatus specimStopAcquisition(void)
+{
+  SI_Command(g_hDevice, L"Acquisition.Stop");
+  return PLUS_SUCCESS;
+}
+
+PlusStatus specimStartAcquisition(void)
+{
+  SI_Command(g_hDevice, L"Acquisition.Start");
+  return PLUS_SUCCESS;
+}
+
+PlusStatus specimInitialize(void)
+{
+  SI_Command(g_hDevice, L"Initialize");
+  return PLUS_SUCCESS;
+}
+
+size_t getSpecimImageWidth(void) {
+  SI_64 nWidth = 0;
+  SI_GetInt(g_hDevice, L"Camera.Image.Width", &nWidth);
+  return static_cast<size_t>(nWidth);
+}
+
+size_t getSpecimImageHeight(void) {
+  SI_64 nHeight = 0;
+  SI_GetInt(g_hDevice, L"Camera.Image.Height", &nHeight);
+  return static_cast<size_t>(nHeight);
+}
+
+SI_64 getSpecimBufferSize(void) {
+  SI_64 nBufferSize = 0;
+  SI_GetInt(g_hDevice, L"Camera.Image.SizeBytes",&nBufferSize);
+  return nBufferSize;
 }
 
 //----------------------------------------------------------------------------
@@ -295,7 +337,6 @@ PlusStatus vtkPlusSpecimCam::ReadConfiguration(vtkXMLDataElement* rootConfigElem
 {
   XML_FIND_DEVICE_ELEMENT_REQUIRED_FOR_READING(deviceConfig, rootConfigElement);
   int numAttributes = deviceConfig->GetNumberOfAttributes();
-  std::string Model = deviceConfig->GetAttribute("Model");
   SI_WC ProfilesDirectory[4096];
   const char * pd = deviceConfig->GetAttribute("ProfilesDirectory");
   SI_64 nDeviceCount;
@@ -305,19 +346,17 @@ PlusStatus vtkPlusSpecimCam::ReadConfiguration(vtkXMLDataElement* rootConfigElem
   char buffer[4096];
   char buffer2[4096];
 
+  cameraModel = deviceConfig->GetAttribute("Model");
+
   std::mbstowcs(ProfilesDirectory, pd, 4096);
   std::wcstombs(buffer, ProfilesDirectory, sizeof(buffer));
 
-  LOG_DEBUG("ProfilesDirectory Tranformado: " << buffer);
-
   if (int  er = SI_SetString(SI_SYSTEM, L"ProfilesDirectory", ProfilesDirectory) != 0) {
-    LOG_DEBUG("(Error " << er << ") Specim " << Model << " Camera Profile not found.");
+    LOG_DEBUG("(Error " << er << ") Specim " << cameraModel << " Camera Profile not found.");
     return PLUS_FAIL;
   }
 
-
   SI_Load(L"");
-
 
   SI_GetInt(SI_SYSTEM, L"DeviceCount", &nDeviceCount);
   LOG_DEBUG("nDeviceCount = " << nDeviceCount);
@@ -326,22 +365,20 @@ PlusStatus vtkPlusSpecimCam::ReadConfiguration(vtkXMLDataElement* rootConfigElem
     SI_GetEnumStringByIndex(SI_SYSTEM, L"DeviceName", n, szProfileName, 4096);
     std::wcstombs(buffer2, szProfileName, sizeof(buffer));
     profileName = buffer2;
-    if (profileName.find(Model) != std::string::npos) {
-      LOG_DEBUG("Specim " << Model << " Camera Profile found: " << profileName);
+    if (profileName.find(cameraModel) != std::string::npos) {
+      LOG_DEBUG("Specim " << cameraModel << " Camera Profile found: " << profileName);
       profileFound = true;
       break;
     }
     else {
-      LOG_DEBUG("Specim " << Model << " Probado profileName con: " << profileName << ".");
+      LOG_DEBUG("Specim " << cameraModel << " Probado profileName con: " << profileName << ".");
 
     }
   }
   if (!profileFound) {
-    LOG_DEBUG("Specim " << Model << " Camera Profile not found in directory " << buffer << ".");
+    LOG_DEBUG("Specim " << cameraModel << " Camera Profile not found in directory " << buffer << ".");
     return PLUS_FAIL;
   }
-
-  SI_Unload();
 
   return PLUS_SUCCESS;
 }
@@ -364,50 +401,27 @@ PlusStatus vtkPlusSpecimCam::FreezeDevice(bool freeze)
   {
     this->Connect();
   }
-  return PLUS_SUCCESS;
-}
-
-/****
-PlusStatus vtkPlusSpecimCam::SetPixelFormat(INodeMap& nodeMap) {
-  CEnumerationPtr ptrPixelFormat = nodeMap.GetNode("PixelFormat");
-  CEnumerationPtr ptrImageCompressionMode = nodeMap.GetNode("ImageCompressionMode");
-  CEnumEntryPtr ptrPixelVideoFormat;
- 
-  if (!IsReadable(ptrPixelFormat) ||
-    !IsWritable(ptrPixelFormat))
-  {
-    LOG_ERROR("Unable to get or set pixel format. Aborting.");
-    return PLUS_FAIL;
-  }
-
-  std::string videoFormatString;
-
-  switch (this->iVideoFormat) {
-    case Mono8:
-                videoFormatString = "Mono8";
-                break;
-    case Mono16:
-    default:
-                videoFormatString = "Mono16";
-                break;
-  }
-  ptrPixelVideoFormat = ptrPixelFormat->GetEntryByName(videoFormatString.c_str());
-  if (!IsReadable(ptrPixelVideoFormat))
-  {
-    LOG_ERROR("Unable to get pixel format to " << videoFormatString << ". Aborting.");
-    return PLUS_FAIL;
-  }
-
-  ptrPixelFormat->SetIntValue(ptrPixelVideoFormat->GetValue());
-  LOG_DEBUG("Pixel format set to " << ptrPixelVideoFormat->GetSymbolic() << ".");
 
   return PLUS_SUCCESS;
 }
-***/
+
 
 //----------------------------------------------------------------------------
 PlusStatus vtkPlusSpecimCam::InternalConnect()
 {
+
+  int nDeviceIndex = 0; // Por ahora, solo el primero
+
+  SI_Open(nDeviceIndex, &g_hDevice);
+  specimInitialize();
+
+  if (S_BufferAddress == nullptr) {
+    SI_64 nBufferSize = getSpecimBufferSize();
+    SI_CreateBuffer(g_hDevice, nBufferSize, (void**)&S_BufferAddress);
+  }
+
+  specimStartAcquisition();
+
 /*****
   // Retrieve singleton reference to system object
   psystem = System::GetInstance();
@@ -512,6 +526,7 @@ LOG_DEBUG("Number of FLIR cameras detected: " << numCameras);
   return PLUS_SUCCESS;
 }
 
+
 //----------------------------------------------------------------------------
 PlusStatus vtkPlusSpecimCam::InternalDisconnect()
 {
@@ -529,12 +544,52 @@ PlusStatus vtkPlusSpecimCam::InternalDisconnect()
   }
 
 **/
+  specimStopAcquisition();
+  SI_DisposeBuffer(g_hDevice, S_BufferAddress);
+  SI_Close(g_hDevice);
   return PLUS_SUCCESS;
 }
+
+
 
 //----------------------------------------------------------------------------
 PlusStatus vtkPlusSpecimCam::InternalUpdate()
 {
+
+  int pixelType = VTK_UNSIGNED_CHAR;
+  int numberOfScalarComponents = 1;
+  US_IMAGE_TYPE imageType = US_IMG_BRIGHTNESS;
+
+  
+  vtkPlusDataSource* aSource(nullptr);
+  if (this->GetFirstActiveOutputVideoSource(aSource) == PLUS_FAIL || aSource == nullptr)
+  {
+    LOG_ERROR("Unable to grab a video source. Skipping frame.");
+    return PLUS_FAIL;
+  }
+
+  const size_t width = getSpecimImageWidth();
+  const size_t height = getSpecimImageHeight();
+
+  SI_Wait(g_hDevice, S_BufferAddress, &S_FrameSize, &S_FrameNumber, SI_INFINITE);
+  this->m_currentTime = vtkIGSIOAccurateTimer::GetSystemTime();
+
+  if (aSource->GetNumberOfItems() == 0)
+  {
+    // Init the buffer with the metadata from the first frame
+    aSource->SetImageType(imageType);
+    aSource->SetPixelType(pixelType);
+    aSource->SetNumberOfScalarComponents(numberOfScalarComponents);
+    aSource->SetInputFrameSize(width, height, 1);
+  }
+  // Add the frame to the stream buffer
+  FrameSizeType frameSize = { static_cast<unsigned int>(width), static_cast<unsigned int>(height), 1 };
+  if (aSource->AddItem(S_BufferAddress, aSource->GetInputImageOrientation(), frameSize, pixelType, numberOfScalarComponents, imageType, 0, this->FrameNumber, this->m_currentTime, this->m_currentTime) == PLUS_FAIL)
+  {
+    return PLUS_FAIL;
+  }
+  this->FrameNumber++;
+
 /*****
   ImagePtr pResultImage = pCam->GetNextImage(1000);
   int pixelType = VTK_UNSIGNED_CHAR;
