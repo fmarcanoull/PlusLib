@@ -290,70 +290,59 @@ int PrintDeviceInfo(INodeMap& nodeMap)
 ***/
 
 //-----------------------------------------------------------------------------
-PlusStatus featureCallback(SI_H hndl, SI_WC* feature, void* context)
-{
-  return PLUS_SUCCESS;
-}
+
 PlusStatus vtkPlusSpecimCam::ReadConfiguration(vtkXMLDataElement* rootConfigElement)
 {
   XML_FIND_DEVICE_ELEMENT_REQUIRED_FOR_READING(deviceConfig, rootConfigElement);
   int numAttributes = deviceConfig->GetNumberOfAttributes();
   std::string Model = deviceConfig->GetAttribute("Model");
-  LOG_DEBUG("Reading configuration of Specim Camera " << Model << ".");
+  SI_WC ProfilesDirectory[4096];
+  const char * pd = deviceConfig->GetAttribute("ProfilesDirectory");
+  SI_64 nDeviceCount;
+  SI_WC szProfileName[4096];
+  std::string profileName;
+  bool profileFound = false;
+  char buffer[4096];
+  char buffer2[4096];
 
-  for (int ix = 0; ix < numAttributes; ++ix) {
-    const char* attributeName = deviceConfig->GetAttributeName(ix);
-    const char* attributeValue = deviceConfig->GetAttribute(attributeName);
-    std::string attNameStr(attributeName);
-    std::string attValStr(attributeValue);
-    if (attNameStr.find('.') != std::string::npos) { // is camera attribute
-      size_t commaPos = attValStr.find(',');
-      if (commaPos != std::string::npos){
-        std::string val1 = attValStr.substr(0, commaPos);
-        std::string val2 = attValStr.substr(commaPos + 1);
-        if (val1.find("None") != std::string::npos) {
-          val1 = "";
-        }
-        LOG_DEBUG(attNameStr << ": " << val1 << " , Stopacquisition = " << val2);
-      }
-      else {
-        LOG_DEBUG(attNameStr << ": " << attValStr);
-      }
+  std::mbstowcs(ProfilesDirectory, pd, 4096);
+  std::wcstombs(buffer, ProfilesDirectory, sizeof(buffer));
+
+  LOG_DEBUG("ProfilesDirectory Tranformado: " << buffer);
+
+  if (int  er = SI_SetString(SI_SYSTEM, L"ProfilesDirectory", ProfilesDirectory) != 0) {
+    LOG_DEBUG("(Error " << er << ") Specim " << Model << " Camera Profile not found.");
+    return PLUS_FAIL;
+  }
+
+
+  SI_Load(L"");
+
+
+  SI_GetInt(SI_SYSTEM, L"DeviceCount", &nDeviceCount);
+  LOG_DEBUG("nDeviceCount = " << nDeviceCount);
+  for (int n = 0; n < nDeviceCount; n++)
+  {
+    SI_GetEnumStringByIndex(SI_SYSTEM, L"DeviceName", n, szProfileName, 4096);
+    std::wcstombs(buffer2, szProfileName, sizeof(buffer));
+    profileName = buffer2;
+    if (profileName.find(Model) != std::string::npos) {
+      LOG_DEBUG("Specim " << Model << " Camera Profile found: " << profileName);
+      profileFound = true;
+      break;
+    }
+    else {
+      LOG_DEBUG("Specim " << Model << " Probado profileName con: " << profileName << ".");
+
     }
   }
-
-/***
-
-  
-  const char* ExposureTimeString = deviceConfig->GetAttribute("ExposureTime");
-  std::string VideoFormatString = deviceConfig->GetAttribute("VideoFormat");
-  if (ExposureTimeString)
-  {
-    this->dwExposure = std::atoi(ExposureTimeString);
-
-    LOG_DEBUG("FLIR Systems Spinnaker: ExposureTime = " << this->dwExposure);
-
-  }
-  else
-  {
-    this->dwExposure = 0;
+  if (!profileFound) {
+    LOG_DEBUG("Specim " << Model << " Camera Profile not found in directory " << buffer << ".");
+    return PLUS_FAIL;
   }
 
-  std::transform(VideoFormatString.begin(), VideoFormatString.end(), VideoFormatString.begin(),
-                        [](unsigned char c) { return std::toupper(c); } 
-                      );
+  SI_Unload();
 
-  if (0 == VideoFormatString.compare("MONO8")){
-    this->iVideoFormat = Mono8;
-  } else if (0 == VideoFormatString.compare("MONO16")){
-    this->iVideoFormat = Mono16;
-  } else
-  {
-    this->iVideoFormat = Mono16; 
-  }
-
-  LOG_DEBUG("FLIR Systems Spinnaker: Video mode = " << VideoFormatString);
- ***/
   return PLUS_SUCCESS;
 }
 
