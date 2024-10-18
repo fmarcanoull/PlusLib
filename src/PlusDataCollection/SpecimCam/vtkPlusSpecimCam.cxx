@@ -192,16 +192,24 @@ PlusStatus vtkPlusSpecimCam::InternalConnect()
   int nError = siNoError;
   int nDeviceIndex = 0; // Por ahora, solo el primero
 
+  LOG_DEBUG("---> SI_OPEN Specim ");
   SI_CHK(SI_Open(nDeviceIndex, &g_hDevice));
+  LOG_DEBUG("---> SI_Initialize Specim ");
   SI_CHK(specimInitialize());
 
+  LOG_DEBUG("---> Checking S_BufferAddress ");
   if (S_BufferAddress == nullptr) {
     SI_64 nBufferSize = 0;
+    LOG_DEBUG("---> Getting buffer size ");
     SI_CHK(getSpecimBufferSize(&nBufferSize));
+    LOG_DEBUG("---> Creating S_BufferAddress");
     SI_CHK(SI_CreateBuffer(g_hDevice, nBufferSize, (void**)&S_BufferAddress));
   }
 
+  LOG_DEBUG("---> Starting acquisition");
   SI_CHK(specimStartAcquisition());
+
+  LOG_DEBUG("---> Everything Ok");
 
 Error:
   SPECIM_CHECK_ERROR(nError);
