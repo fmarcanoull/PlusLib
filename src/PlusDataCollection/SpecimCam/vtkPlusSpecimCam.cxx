@@ -259,6 +259,8 @@ PlusStatus vtkPlusSpecimCam::InternalUpdate()
   SI_CHK(SI_Wait(g_hDevice, S_BufferAddress, &S_FrameSize, &S_FrameNumber, SI_INFINITE));
   this->m_currentTime = vtkIGSIOAccurateTimer::GetSystemTime();
 
+  this->FrameNumber = static_cast<unsigned long>(S_FrameNumber);
+
   if (aSource->GetNumberOfItems() == 0)
   {
     // Init the buffer with the metadata from the first frame
@@ -273,7 +275,7 @@ PlusStatus vtkPlusSpecimCam::InternalUpdate()
   {
     return PLUS_FAIL;
   }
-  this->FrameNumber++;
+  // this->FrameNumber++;
 
 Error:
   SPECIM_CHECK_ERROR(nError);
