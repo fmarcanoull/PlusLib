@@ -21,10 +21,16 @@ Developed by ULL & IACTEC-IAC group
 #include <vtkImageData.h>
 #include <vtkObjectFactory.h>
 
+// For platform-independent sleep 
+#include <chrono>
+#include <thread>
+
+
 SI_H g_hDevice = 0;
 SI_U8 *S_BufferAddress = nullptr;
 SI_64 S_FrameSize;
 SI_64 S_FrameNumber;
+unsigned long gFrameNumber = 0;
 
 std::string cameraModel;
 
@@ -66,7 +72,21 @@ int specimStartAcquisition(void)
 
 int specimInitialize(void)
 {
-  return(SI_Command(g_hDevice, L"Initialize"));
+  int nError = siNoError;
+  for (int i = 0; i < 3; i++) {
+    if ((nError = SI_Command(g_hDevice, L"Initialize")) != siNoError) {
+        LOG_DEBUG("Attempt #" << i << " to initialize the camera was unsuccessful.");
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+    }
+  }
+  if (nError != siNoError) {
+    LOG_DEBUG("Unable to initialize the camera.");
+  }
+  else {
+    LOG_DEBUG("Camera initialized.");
+
+  }
+  return(nError);
 }
 
 int getSpecimImageWidth(size_t *W) {
@@ -97,6 +117,14 @@ void showSpecimErrorMessage(const SI_WC *errMsg)
   std::wcstombs(errorBuffer,errMsg, sizeof(errorBuffer));
   LOG_ERROR("Error: " << errorBuffer);
 }
+
+int SI_IMPEXP_CONV onDataCallback(SI_U8* _pBuffer, SI_64 _nFrameSize, SI_64 _nFrameNumber, void* _pContext)
+{
+  gFrameNumber = static_cast<unsigned long>(_nFrameNumber);
+  std::memcpy(S_BufferAddress, _pBuffer, _nFrameSize);
+  return 0;
+}
+
 
 //----------------------------------------------------------------------------
 void vtkPlusSpecimCam::PrintSelf(ostream& os, vtkIndent indent)
@@ -204,6 +232,8 @@ PlusStatus vtkPlusSpecimCam::InternalConnect()
     SI_CHK(getSpecimBufferSize(&nBufferSize));
     LOG_DEBUG("---> Creating S_BufferAddress");
     SI_CHK(SI_CreateBuffer(g_hDevice, nBufferSize, (void**)&S_BufferAddress));
+    LOG_DEBUG("---> Registering acquisition callback");
+    SI_CHK(SI_RegisterDataCallback(g_hDevice, onDataCallback, 0));
   }
 
   LOG_DEBUG("---> Starting acquisition");
@@ -232,13 +262,11 @@ Error:
   return PLUS_SUCCESS;
 }
 
-
-
 //----------------------------------------------------------------------------
 PlusStatus vtkPlusSpecimCam::InternalUpdate()
 {
 
-  int pixelType = VTK_UNSIGNED_CHAR;
+  int pixelType = VTK_UNSIGNED_SHORT;
   int numberOfScalarComponents = 1;
   US_IMAGE_TYPE imageType = US_IMG_BRIGHTNESS;
   int nError = siNoError;
@@ -256,10 +284,10 @@ PlusStatus vtkPlusSpecimCam::InternalUpdate()
   SI_CHK(getSpecimImageHeight(&height));
 
 
-  SI_CHK(SI_Wait(g_hDevice, S_BufferAddress, &S_FrameSize, &S_FrameNumber, SI_INFINITE));
+  // SI_CHK(SI_Wait(g_hDevice, S_BufferAddress, &S_FrameSize, &S_FrameNumber, SI_INFINITE));
   this->m_currentTime = vtkIGSIOAccurateTimer::GetSystemTime();
 
-  this->FrameNumber = static_cast<unsigned long>(S_FrameNumber);
+  //this->FrameNumber = static_cast<unsigned long>(S_FrameNumber);
 
   if (aSource->GetNumberOfItems() == 0)
   {
@@ -269,6 +297,7 @@ PlusStatus vtkPlusSpecimCam::InternalUpdate()
     aSource->SetNumberOfScalarComponents(numberOfScalarComponents);
     aSource->SetInputFrameSize(width, height, 1);
   }
+  this->FrameNumber = gFrameNumber;
   // Add the frame to the stream buffer
   FrameSizeType frameSize = { static_cast<unsigned int>(width), static_cast<unsigned int>(height), 1 };
   if (aSource->AddItem(S_BufferAddress, aSource->GetInputImageOrientation(), frameSize, pixelType, numberOfScalarComponents, imageType, 0, this->FrameNumber, this->m_currentTime, this->m_currentTime) == PLUS_FAIL)
