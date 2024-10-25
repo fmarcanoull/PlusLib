@@ -2549,16 +2549,10 @@ IF(PLUS_USE_SPECIM_CAM)
     ${SPECIM_SDK_LIBRARY}
   )
   LIST(APPEND External_Libraries_Install
-    ${SPECIM_SDK_BINARY}/${SDK_FILENAME}
-    ${SPECIM_SDK_BINARY}/grab014.dll
-    ${SPECIM_SDK_BINARY}/PvBase64.dll
-    ${SPECIM_SDK_BINARY}/PvStream64.dll
-    ${SPECIM_SDK_BINARY}/tbb.dll
-    ${SPECIM_SDK_BINARY}/PvDevice64.dll
-    ${SPECIM_SDK_BINARY}/tbbmalloc.dll
+	${SPECIM_SDK_DLLS}
   )
   LIST(APPEND External_Libraries_Debug
-    ${SPECIM_SDK_BINARY}/${SDK_FILENAME}
+  	${SPECIM_SDK_DLLS}
   )
 ENDIF()
 
