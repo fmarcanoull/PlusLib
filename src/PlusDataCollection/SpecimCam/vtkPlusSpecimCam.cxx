@@ -141,7 +141,9 @@ PlusStatus vtkPlusSpecimCam::ReadConfiguration(vtkXMLDataElement* rootConfigElem
   XML_FIND_DEVICE_ELEMENT_REQUIRED_FOR_READING(deviceConfig, rootConfigElement);
   int numAttributes = deviceConfig->GetNumberOfAttributes();
   SI_WC ProfilesDirectory[4096];
-  const char * pd = deviceConfig->GetAttribute("ProfilesDirectory");
+  SI_WC LicenseFile[4096];
+  const char* pd = deviceConfig->GetAttribute("ProfilesDirectory");
+  const char* LS = deviceConfig->GetAttribute("LicenseFile");
   SI_64 nDeviceCount;
   SI_WC szProfileName[4096];
   std::string profileName;
@@ -154,13 +156,15 @@ PlusStatus vtkPlusSpecimCam::ReadConfiguration(vtkXMLDataElement* rootConfigElem
 
   std::mbstowcs(ProfilesDirectory, pd, 4096);
   std::wcstombs(buffer, ProfilesDirectory, sizeof(buffer));
+  std::mbstowcs(LicenseFile, LS, 4096);
 
   if (int  er = SI_SetString(SI_SYSTEM, L"ProfilesDirectory", ProfilesDirectory) != 0) {
     LOG_DEBUG("(Error " << er << ") Specim " << cameraModel << " Camera Profile not found.");
     return PLUS_FAIL;
   }
 
-  SI_CHK(SI_Load(L""));
+  //SI_CHK(SI_Load(L""));
+  SI_CHK(SI_Load(LicenseFile));
 
   SI_CHK(SI_GetInt(SI_SYSTEM, L"DeviceCount", &nDeviceCount));
   LOG_DEBUG("nDeviceCount = " << nDeviceCount);
